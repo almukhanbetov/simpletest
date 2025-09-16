@@ -1,13 +1,10 @@
 # ====================== CI/CD Deploy simpletest ======================
 name: CI/CD Deploy simpletest             # Название пайплайна (видно в GitHub Actions)
-
 on:
   push:
     branches: [ "main" ]                  # Триггер: запуск при пуше в ветку main
-
 env:
   IMAGE_NAME: almuko/simpletest           # Имя Docker-образа (ваш репозиторий на Docker Hub)
-
 jobs:
   # ====================== Build & Push Docker Image ======================
   build-and-push:                         # Джоб для сборки и публикации образа
@@ -30,7 +27,6 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}    
-
   # ====================== Deploy to Kubernetes ======================
   deploy:
     runs-on: ubuntu-latest                # Второй джоб для деплоя в Kubernetes
@@ -54,8 +50,11 @@ jobs:
 
       - name: Install cert-manager
         run: |                            # Устанавливаем cert-manager (для TLS)
-          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.5/cert-manager.yaml
-          kubectl rollout status deployment/cert-manager -n cert-manager --timeout=180s
+            kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+            # Ждём пока все поды cert-manager станут Ready
+            kubectl rollout status deployment/cert-manager -n cert-manager --timeout=180s
+            kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=180s
+            kubectl rollout status deployment/cert-manager-cainjector -n cert-manager --timeout=180s
 
       - name: Deploy ClusterIssuer (Let's Encrypt)
         run: kubectl apply --validate=false -f k8s/cluster-issuer.yaml
