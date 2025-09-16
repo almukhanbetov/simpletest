@@ -1,0 +1,99 @@
+# ====================== Secret ======================
+apiVersion: v1                         # API версия для Secret
+kind: Secret                           # Ресурс Secret
+metadata:
+  name: simpletest-db-secret           # Имя секрета
+  namespace: default                   # Namespace, где будет создан
+type: Opaque                           # Тип "произвольные данные"
+stringData:                            # Данные в виде строки
+  DATABASE_URL: "postgres://postgres:Zxcvbnm123@postgres:5432/simpletest?sslmode=disable"
+  # Строка подключения к Postgres (логин, пароль, хост, порт, БД)
+
+---
+# ====================== Deployment ======================
+apiVersion: apps/v1                    # API версия для Deployment
+kind: Deployment                       # Ресурс Deployment
+metadata:
+  name: simpletest                     # Имя деплоймента
+  namespace: default
+spec:
+  replicas: 1                          # Количество Pod'ов (можно масштабировать)
+  selector:
+    matchLabels:
+      app: simpletest                  # Метка для поиска Pod'ов
+  template:
+    metadata:
+      labels:
+        app: simpletest                # Метка для Pod'ов
+    spec:
+      containers:
+        - name: app                    # Имя контейнера
+          image: almuko/simpletest:latest   # Docker-образ из Docker Hub
+          ports:
+            - containerPort: 8080      # Порт, который слушает приложение внутри Pod
+          env:
+            - name: DATABASE_URL       # Подключаем переменную окружения DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: simpletest-db-secret # Берём значение из секрета
+                  key: DATABASE_URL
+
+          # Проба готовности (подключение к Pod готово)
+          readinessProbe:
+            httpGet:
+              path: /health            # Проверяем эндпоинт /health
+              port: 8080               # На порту 8080
+            initialDelaySeconds: 5     # Подождать 5 сек перед первой проверкой
+            periodSeconds: 10          # Проверять каждые 10 сек
+            failureThreshold: 3        # После 3 неудачных попыток Pod считается not ready
+
+          # Проба живости (если Pod завис — Kubernetes его перезапустит)
+          livenessProbe:
+            httpGet:
+              path: /health            # Проверка того же эндпоинта /health
+              port: 8080
+            initialDelaySeconds: 15    # Ждём 15 сек перед первой проверкой
+            periodSeconds: 20          # Проверяем каждые 20 сек
+            failureThreshold: 3        # После 3 неудач Pod будет перезапущен
+
+---
+# ====================== Service ======================
+apiVersion: v1
+kind: Service
+metadata:
+  name: simpletest                     # Имя сервиса
+  namespace: default
+spec:
+  selector:
+    app: simpletest                    # Привязываем сервис к Pod'ам с меткой app=simpletest
+  ports:
+    - port: 80                         # Порт сервиса (для ingress)
+      targetPort: 8080                  # Пробрасываем на порт Pod'а (контейнер слушает 8080)
+  type: ClusterIP                       # Сервис доступен только внутри кластера
+
+---
+# ====================== Ingress ======================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: simpletest-ingress             # Имя Ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik   # Используем Traefik ingress-controller
+    cert-manager.io/cluster-issuer: letsencrypt-prod # Cert-manager для TLS сертификатов
+spec:
+  tls:                                 # TLS сертификат для HTTPS
+    - hosts:
+        - simpletest.compnet.kz        # Домен для приложения
+      secretName: simpletest-tls       # Секрет, куда cert-manager положит сертификат
+  rules:                               # Правила маршрутизации
+    - host: simpletest.compnet.kz
+      http:
+        paths:
+          - path: /                    # Все запросы по /
+            pathType: Prefix
+            backend:
+              service:
+                name: simpletest       # Отправляем в сервис simpletest
+                port:
+                  number: 80           # На его порт 80
