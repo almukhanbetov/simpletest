@@ -1,0 +1,62 @@
+# ======================
+# Общие системные файлы
+# ======================
+**/.DS_Store
+**/Thumbs.db
+
+# ======================
+# Git
+# ======================
+.git
+.gitignore
+
+# ======================
+# IDE/Editor
+# ======================
+.vscode
+.idea
+*.swp
+*.swo
+
+# ======================
+# Go build/cache
+# ======================
+bin/
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Кэш Go модулей и компиляции
+/go/pkg
+/go/bin
+*.a
+
+# ======================
+# Node/Frontend (если в проекте есть React)
+# ======================
+node_modules/
+npm-debug.log
+yarn-error.log
+/dist
+
+# ======================
+# Docker
+# ======================
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ======================
+# Конфиги и секреты (лучше хранить в Kubernetes Secrets, а не в образе)
+# ======================
+.env
+*.env
+.env.*
+*.pem
+*.crt
+*.key
