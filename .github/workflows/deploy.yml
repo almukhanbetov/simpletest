@@ -50,13 +50,17 @@ jobs:
 
       - name: Install cert-manager
         run: |                            # Устанавливаем cert-manager (для TLS)
-            - name: Install cert-manager
-              run: |
-                kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml --validate=false
-                # Ждём пока все поды cert-manager станут Ready
-                kubectl rollout status deployment/cert-manager -n cert-manager --timeout=180s
-                kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=180s
-                kubectl rollout status deployment/cert-manager-cainjector -n cert-manager --timeout=180s
+            helm repo add jetstack https://charts.jetstack.io
+            helm repo update
+            helm upgrade --install cert-manager jetstack/cert-manager \
+              --namespace cert-manager \
+              --create-namespace \
+              --set installCRDs=true
+
+            # Ждём пока все поды cert-manager станут Ready
+            kubectl rollout status deployment/cert-manager -n cert-manager --timeout=180s
+            kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=180s
+            kubectl rollout status deployment/cert-manager-cainjector -n cert-manager --timeout=180s
 
 
       - name: Deploy ClusterIssuer (Let's Encrypt)
